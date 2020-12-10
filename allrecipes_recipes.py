@@ -2,17 +2,20 @@
 This program runs the section with iterates over the carousel of recipe types
 to extract types as separate recipe groups
 """
-
 import re
+import pandas as pd
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
 
+# this function takes a url and make a Beautiful Soup from it
+# returns soup object
 def makesoup(url):
     page = urlopen(url)
     html = page.read().decode("utf-8")
     return BeautifulSoup(html,"html.parser")
 
 # this function takes a string containing non-ascii numerals and converts said numerals within the string
+# returns string
 def convertedstr(string):
     out = []
     unwanted = {
@@ -82,11 +85,6 @@ This class is a data store for important features
 """
 class Recipe:
 
-    ratedata = "component recipe-reviews"
-    name = "headline heading-content"
-    summ = "margin-0-auto"
-    item = "ingredients-item-name"
-
     def __init__(self,url):
         self.soup = makesoup(url)
         self.name = self.getname()
@@ -94,14 +92,20 @@ class Recipe:
         self.ingredients = self.getstuff()
         self.nutrition = self.getnutri()
 
+    # This function fetches the name of the recipe
+    # returns a string
     def getname(self):
         name = self.soup.body.main.find("h1",class_='headline heading-content')
         return name.string.strip()
 
+    # This function fetches the average 5-star rating of the recipe
+    # returns a string
     def getstars(self):
         stars = self.soup.body.find("span",class_='review-star-text')
         return stars.string.strip()
 
+    # this function fetches the listed ingredients of the recipe
+    # returns a list
     def getstuff(self):
         out = []
         for ing in self.soup.body.main.find_all("span",class_='ingredients-item-name'):
@@ -111,6 +115,8 @@ class Recipe:
             out.append(s)
         return out
 
+    # this function fetches the nutrition facts of the recipe
+    # returns a dictionary of key:value pairs
     def getnutri(self):
         out = {}
         
@@ -124,9 +130,20 @@ class Recipe:
 
 def main():
     url = "https://www.allrecipes.com/recipes/"
-    url2 = "https://www.allrecipes.com/recipe/17855/glazed-corned-beef/"
-
     book = RecipeBook(url)
+
+    names = []
+    ratings = []
+    
+
+    #writer = pd.ExcelWriter('recipes.xlsx',engine='xlsxwriter')
+    #df.to_excel(writer,sheet_name='Sheet1',index=False)
+    #writer.save()
+
+    #for link in book.linklist:
+    #    r = Recipe(link)
+
+
 
 if __name__ == "__main__":
     main()
