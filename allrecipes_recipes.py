@@ -2,19 +2,20 @@ import re
 import pandas as pd
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
+from sklearn.preprocessing import MultiLabelBinarizer
 
-""" This function takes a url and make a BeautifulSoup object from it
-returns soup object
-"""
 def makesoup(url):
+    """ This function takes a url and make a BeautifulSoup object from it
+    returns soup object
+    """
     with urlopen(url) as page:
         html = page.read().decode("utf-8")
         return BeautifulSoup(html,"html.parser")
 
-""" This function takes a string containing non-ascii numerals and converts said numerals within the string
-returns string
-"""
 def convertedstr(string):
+    """ This function takes a string containing non-ascii numerals and converts said numerals within the string
+    returns string
+    """
     out = []
     unwanted = {
         '\u2009':' ',
@@ -42,29 +43,29 @@ def convertedstr(string):
             out.append(ch)
     return "".join(out);
 
-
 class AllRecipeBook:
-""" Data store for url links to allrecipes.com recipes
+    """ Data store for url links to allrecipes.com recipes
 
-This class leverages Beautiful Soup to scrape allrecipes.com, extracting a master list of recipe urls for later processing
+    This class leverages Beautiful Soup to scrape allrecipes.com, extracting a master list of recipe urls for later processing
 
-Attributes:
-carousel    -- str; holds html class reference for carousel of recipe type links
-card        -- str; holds html class reference for card of recipe link
-linklist    -- list; holds all of the urls to each recipe
-count       -- int; holds number of times traversed down recipe type tree
+    Attributes:
+    carousel    -- str; holds html class reference for carousel of recipe type links
+    card        -- str; holds html class reference for card of recipe link
+    linklist    -- list; holds all of the urls to each recipe
+    count       -- int; holds number of times traversed down recipe type tree
 
-Methods:
-__init__    -- initializes the recipebook's data fields and calls the makebook method
-findall     -- returns a list of urls of either carousel recipe types or card recipes
-makebook    -- this function recurses down recipe type tree to extract all urls and append them to linklist
-"""
+    Methods:
+    __init__    -- initializes the recipebook's data fields and calls the makebook method
+    findall     -- returns a list of urls of either carousel recipe types or card recipes
+    makebook    -- this function recurses down recipe type tree to extract all urls and append them to linklist
+    """
     def __init__(self,url):
         self.carousel = "carouselNav__link recipeCarousel__link"
         self.card = "card__titleLink manual-link-behavior"
         self.linklist = []
         self.count = 0
         self.makebook(url)
+        return self.linklist
 
     # this function returns the next set of subcategories
     # returns a tuple holding boolean if carousel and associated list of urls
@@ -87,28 +88,29 @@ makebook    -- this function recurses down recipe type tree to extract all urls 
         # if no more subcategories, gather all recipe links
         else:
             for recipe in lst:
-                self.linklist.append(recipe.get("href"))
+                link = recipe.get("href")
+                self.linklist.append(link)
+                print(link)
             self.count = 0
 
-
 class Recipe:
-""" Data store for important features of a recipe
+    """ Data store for important features of a recipe
 
-This class leverages Beautiful soup to scrape a recipe webpage, extracting useful features for later processing
+    This class leverages Beautiful soup to scrape a recipe webpage, extracting useful features for later processing
 
-Attributes:
-soup    -- BeautifulSoup; holds the object reference to the page html
-name    -- str; holds the title of the recipe
-rating  -- float; holds the average rating of the recipe
-ingredients -- set; holds all of the listed ingredients of recipe as well as their quantities
-nutrition   -- dict; holds nutrition name:value pairs
+    Attributes:
+    soup    -- BeautifulSoup; holds the object reference to the page html
+    name    -- str; holds the title of the recipe
+    rating  -- float; holds the average rating of the recipe
+    ingredients -- set; holds all of the listed ingredients of recipe as well as their quantities
+    nutrition   -- dict; holds nutrition name:value pairs
 
-Methods:
-getname    -- returns a string holding title of the recipe
-getstars   -- returns a float holding average 5-star rating
-getstuff   -- returns a set of ingredients listed in the recipe along with their quantities
-getnutri   -- returns a dict of nutrition name:value pairs 
-"""
+    Methods:
+    getname    -- returns a string holding title of the recipe
+    getstars   -- returns a float holding average 5-star rating
+    getstuff   -- returns a set of ingredients listed in the recipe along with their quantities
+    getnutri   -- returns a dict of nutrition name:value pairs 
+    """
     def __init__(self,url):
         self.soup = makesoup(url)
         self.name = self.getname()
@@ -148,26 +150,39 @@ getnutri   -- returns a dict of nutrition name:value pairs
         vals = self.soup.body.find_all("span",class_='nutrient-value')
 
         for name,val in zip(names,vals):
-            out[name.contents[0].strip()] = val.contents[0].strip()
+            out[name.contents[0].strip()] = [val.contents[0].strip()]
 
         return out
 
 def main():
+    # create the master list of recipes
     url = "https://www.allrecipes.com/recipes/"
-    book = RecipeBook(url)
+    book = AllRecipeBook(url).linklist
 
-    names = []
-    ratings = []
-    
+    # initialize dataframe initially with only title and rating
+    df = pd.DataFrame(columns=["Recipe Title","Rating"])
 
-    #writer = pd.ExcelWriter('recipes.xlsx',engine='xlsxwriter')
-    #df.to_excel(writer,sheet_name='Sheet1',index=False)
-    #writer.save()
+    # iterate over every recipe url, create a Recipe object, and add the title and rating to the dataframe
+    for num,recipe_url in enumerate(book):
+        r = Recipe(recipe_url)
+        df.loc[num] = [r.name] + [r.rating]
+        pd.concat([df,pd.DataFrame(r.nutrition)],axis=1)
 
-    #for link in book.linklist:
-    #    r = Recipe(link)
+    # create a dataframe of ingredients in preparation for one-hot encodings
+    ing_list = df.Ingredients.apply(lambda x: list(x))
+    ing_df = pd.DataFrame({"Ingredients":ing_list})
 
+    # create a MultiLabelBinarizer and transform ingredients into encodings
+    mlb = MultiLabelBinarizer()
+    ing_encodings = pd.DataFrame(mlb.fit.transform(ing_df["Ingredients"]),columns=mlb.classes_)
 
+    # concatenate ingredients encodings to dataframe
+    df_with_encodings = pd.concat([df,ing_encodings],axis=1)
+
+    # Write the dataframe into an excel sheet for easier access 
+    writer = pd.ExcelWriter('recipes.xlsx',engine='xlsxwriter')
+    df.to_excel(writer,sheet_name='Sheet1',index=False)
+    writer.save()
 
 if __name__ == "__main__":
     main()
