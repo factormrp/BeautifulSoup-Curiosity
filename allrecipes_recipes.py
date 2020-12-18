@@ -81,7 +81,7 @@ class AllRecipeBook:
         # figure out whether there are subcategories and get list, otherwise, get list of recipes
         tipe,lst = self.findall(soup)
         # if subcategories exist, iterate through all and process each
-        if(tipe and self.count < 5):
+        if(tipe and self.count < 4):    
             for sub in lst:
                 self.count += 1
                 self.makebook(sub.get("href"))
