@@ -4,6 +4,16 @@ This document outlines all notable changes to the project
 Types of changes included:
 Added, Changed, Removed, Deprecated, Fixed, Security
 ==========================================================
+### version[0.0.5]
+##  Added
+#   setup.py
+    - initializer for the package
+#   encoding.py
+    - moved code for creating DataFrame
+##  Changed
+#   allrecipes_recipes.py -> scraping.py
+    - moved into foodscrape package 
+==========================================================
 ### version[0.0.4]
 ##  Added
 #   allrecipes_recipes.py
