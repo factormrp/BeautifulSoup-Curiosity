@@ -4,6 +4,19 @@ This document outlines all notable changes to the project
 Types of changes included:
 Added, Changed, Removed, Deprecated, Fixed, Security
 ==========================================================
+### version[0.0.6]
+##  Added
+#   encoding.py
+    - implemented batched processing
+    - implemented batched output
+##  Changed
+#   scraping.py
+    - fixed improper copy
+    - fixed Recipe class to include error handling for scraping errors
+    - changed return of getnutri method to sorted dictionary and standardized keys
+#   encoding.py
+    - segmented code
+==========================================================
 ### version[0.0.5]
 ##  Added
 #   setup.py

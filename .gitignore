@@ -1,2 +1,7 @@
 *.xlsx
 *.txt
+tests/
+.eggs/
+build/
+foodscrape.egg-info/
+w.py
