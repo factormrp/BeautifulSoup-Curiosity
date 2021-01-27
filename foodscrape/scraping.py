@@ -59,7 +59,7 @@ def prepopulate_links(linklist,num=0,stop=None,visited=set()):
         for i in range(num):
             f, next()
         for i,line in enumerate(f):
-            if stop not None:
+            if stop != None:
                 if i >= stop:
                     f.close()
                     return
