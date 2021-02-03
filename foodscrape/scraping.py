@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
+from textblob import TextBlob as tb
 
 def makesoup(url):
     """ This function makes a soup object
@@ -215,28 +216,79 @@ class Recipe:
         """ This function fetches the listed ingredients of the recipe
         returns a set containing the listed ingredients
         """
-        # initialize output set of ingredients and scrape list of them if possible
+        # initialize output set of ingredients
         out = set()
+
+        # try to scrape for all ingredients, otherwise return None
         try:
             ings = self.soup.body.find_all("span",class_='ingredients-item-name')
         except:
             return None
-        # if empty, return None
+        # if scrape succeds but empty, return None
         if not ings:
             return None
-        # iterate over all ingredients and parse them in case of hyperlinks, adding to set
+
+        # iterate over all ingredients making sure to parse them correctly in case of hyperlinks, and then cleaning the string of extraneous wording
         for ing in ings:
+            # in case of hyperlinks in string
             if len(ing.contents)>1:
                 s = ""
                 for i in ing.contents:
                         s += "{} ".format(i.string.strip())
+            # regular string
             else:
                 s = ing.string.strip()
             # if any string contains non-ascii characters, replace them
             if not s.isascii():
                 s = convertedstr(s)
-            out.add(s)
+            # call cleaning routine and add output string to set of ingredients, otherwise return None for error
+            out.add(self.cleaning(s))
+
         return out
+
+    def cleaning(self,ing):
+        """ This function takes a semi-processed ingredient string and extracts only base ingredient
+        returns a string which holds base ingredient
+        """
+        # initialize a list with parts of speech tuples for each word in the ingredient string and reverse it to process it backwards
+        w = tb(ing).tags
+        w.reverse()
+
+        # check if only one noun, in which case return just the noun
+        nouns = ['NN','NNS','NNP']
+        ncount = []
+        for val,part in w:
+            if part in nouns:
+                ncount.append(val+' ')
+        if len(ncount) == 1:
+            return ''.join(ncount)
+
+        # initialize a noun counter and a temp store for words as well as a store for the previous part of speech
+        ncount = 0
+        temp = []
+        prev = None
+
+        # for each word, check if matches conditions at which base ingredient identified, if none satisfied, update prev
+        for val,part in w:
+            if part == 'CD':
+                if prev == 'JJ' or prev == 'N2' or (prev in nouns and ncount>1):
+                    temp.pop()
+                temp.reverse()
+                return ''.join(temp)
+            elif prev == 'JJ':
+                if ncount > 0:
+                    temp.reverse()
+                    return ''.join(temp)
+            elif part in nouns:
+                temp.append(val+' ')
+                ncount += 1
+                if prev in nouns:
+                    prev = 'N2'
+            elif part == 'JJ':
+                temp.append(val+' ')
+
+            if prev != 'N2':
+                prev = part 
 
     def getnutri(self):
         """ This function fetches the nutrition facts of the recipe
