@@ -6,8 +6,6 @@ setup(
     description='Custom scraping library for allrecipes.com',
     author='Maximiliano Rivera-Patton',
     license='MIT',
-    install_requires=['bs4','urllib'],
-    setup_requires=['pytest-runner'],
-    tests_require=['pytest==4.4.1'],
-    test_suite='tests'
+    install_requires=['bs4','textblob'],
+    setup_requires=['pytest-runner']
 )

@@ -1,17 +1,22 @@
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
+from textblob import TextBlob as tb
 
 def makesoup(url):
-    """ This function takes a url and make a BeautifulSoup object from it
-    returns soup object
+    """ This function makes a soup object
+
+    This function takes a url and returns a BeautifulSoup object from it containing webpage html
+    :url: str; contains webpage
     """
     with urlopen(url) as page:
         html = page.read().decode("utf-8")
         return BeautifulSoup(html,"html.parser")
 
 def convertedstr(string):
-    """ This function takes a string containing non-ascii numerals and converts said numerals within the string
-    returns string
+    """ This function cleans a string
+
+    This function takes a string containing non-ascii numerals and converts said numerals within the string
+    :string: str; holds string that might contain non-ASCII characters
     """
     out = []
     unwanted = {
@@ -41,17 +46,34 @@ def convertedstr(string):
             out.append(ch)
     return "".join(out);
 
-def prepopulate_links(linklist,visited):
-    """This function takes in the visited list and linklist and appends every link stored in
-    links.txt the program has encountered in previous runs to these
+def prepopulate_links(linklist,num=0,stop=None,visited=set()):
+    """ If "links.txt" exists, prepopulates master lists to avoid unnecessary complications
+    
+    This function takes in the visited list and linklist and appends every link stored in
+    "links.txt"
+    :linklist: list; master list of all recipe urls to be filled
+    :num: int; holds starting line number
+    :stop: int; holds the ending line number, None by default
+    :visited: set; running list of visited recipe subcategory names
     """
     with open('links.txt','r') as f:
-        for line in f:
+        for i in range(num):
+            f, next()
+        for i,line in enumerate(f):
+            if stop != None:
+                if i >= stop:
+                    f.close()
+                    return
             linklist.append(str(line).strip())
             visited.add(str(line).strip())
         f.close()
 
 def save_link(link):
+    """ This function handles writing of data to "links.txt"
+
+    The function writes recipe url to the file "links.txt"
+    :link: str; contains recipe url
+    """
     with open('links.txt','a') as f:
         f.write('{}\n'.format(link))
         f.close()
@@ -83,16 +105,16 @@ class AllRecipeBook:
         :soup: BeautifulSoup object holding url html
         """
         try:
-            carousel = soup.body.main.find_all("a",class_="carouselNav__link recipeCarousel__link")
+            carousel = soup.body.find_all("a",class_="carouselNav__link recipeCarousel__link")
             if carousel:
-                carousel_names = soup.body.main.find_all("div",class_="carouselNav__linkText")
+                carousel_names = soup.body.find_all("div",class_="carouselNav__linkText")
                 return carousel_names,carousel
         except:
             print('Attempted to access empty carousel')
             print(soup.name)
             return -1,-1
         try:
-            card = soup.body.main.find_all("a",class_="card__titleLink manual-link-behavior")
+            card = soup.body.find_all("a",class_="card__titleLink manual-link-behavior")
             return None,card
         except:
             print('Attempeted to access bad recipe card')
@@ -107,6 +129,9 @@ class AllRecipeBook:
         Parameter:
         :url: string holding url link to webpage of next subcategory or recipe
         """
+        # if url is gallery type, then skip completely
+        if url.find("https://www.allrecipes.com/gallery/") != -1:
+            return
         # prepopulate visited list with links from previous runs to speed up initial computation
         prepopulate_links(self.linklist,self.visited)
         # if url is in linklist, then skip completely
@@ -135,48 +160,6 @@ class AllRecipeBook:
                     self.linklist.append(link)
                     save_link(link)
 
-
-    
-    def getname(self):
-        """ This function fetches the name of the recipe
-        returns a string containing the name of the current recipe
-        """
-        name = soup.body.main.find("h1",class_='headline heading-content')
-        return name.string.strip()
-
-    def getstars(self):
-        """ This function fetches the average 5-star rating of the recipe
-        returns a string with the average 5-star rating
-        """
-        stars = self.soup.body.find("span",class_='review-star-text')
-        return float(stars.string.strip())
-
-    def getstuff(self):
-        """ This function fetches the listed ingredients of the recipe
-        returns a set containing the listed ingredients
-        """
-        out = set()
-        for ing in self.soup.body.main.find_all("span",class_='ingredients-item-name'):
-            s = ing.string.strip()
-            if not s.isascii():
-                s = convertedstr(s)
-            out.add(s)
-        return out
-
-    def getnutri(self):
-        """ This function fetches the nutrition facts of the recipe
-        returns a dictionary of key:value pairs containing nutrition info
-        """
-        out = {}
-        
-        names = self.soup.body.find_all("span",class_='nutrient-name')
-        vals = self.soup.body.find_all("span",class_='nutrient-value')
-
-        for name,val in zip(names,vals):
-            out[name.contents[0].strip()] = [val.contents[0].strip()]
-
-        return out
-
 class Recipe:
     """ Data store for important features of a recipe
 
@@ -194,6 +177,7 @@ class Recipe:
     getstars   -- returns a float holding average 5-star rating
     getstuff   -- returns a set of ingredients listed in the recipe along with their quantities
     getnutri   -- returns a dict of nutrition name:value pairs 
+    geterr     -- returns a boolean indicating if any scraping error occured
     """
     def __init__(self,url):
         self.soup = makesoup(url)
@@ -201,9 +185,177 @@ class Recipe:
         self.rating = self.getstars()
         self.ingredients = self.getstuff()
         self.nutrition = self.getnutri()
+        self.err = self.geterr()
+    
+    def getname(self):
+        """ This function fetches the name of the recipe
+        returns a string containing the name of the current recipe
+        """
+        # attempt to scrape recipe title, otherwise return None
+        try:
+            name = self.soup.find("h1",class_='headline heading-content')
+        except:
+            return None
+        if name:
+            return name.string.strip()
+        else:
+            return None
+
+    def getstars(self):
+        """ This function fetches the average 5-star rating of the recipe
+        returns a string with the average 5-star rating
+        """
+        # extract average ratings value if possible, otherwise return None
+        try:
+            stars = self.soup.body.find(attrs={"data-ratings-average":True})['data-ratings-average']
+        except:
+            return None
+        return float(stars) if stars != '' else None
+
+    def getstuff(self):
+        """ This function fetches the listed ingredients of the recipe
+        returns a set containing the listed ingredients
+        """
+        # initialize output set of ingredients
+        out = set()
+
+        # try to scrape for all ingredients, otherwise return None
+        try:
+            ings = self.soup.body.find_all("span",class_='ingredients-item-name')
+        except:
+            return None
+        # if scrape succeds but empty, return None
+        if not ings:
+            return None
+
+        # iterate over all ingredients making sure to parse them correctly in case of hyperlinks, and then cleaning the string of extraneous wording
+        for ing in ings:
+            # in case of hyperlinks in string
+            if len(ing.contents)>1:
+                s = ""
+                for i in ing.contents:
+                        s += "{} ".format(i.string.strip())
+            # regular string
+            else:
+                s = ing.string.strip()
+            # if any string contains non-ascii characters, replace them
+            if not s.isascii():
+                s = convertedstr(s)
+            # call cleaning routine and add output string to set of ingredients, otherwise return None for error
+            out.add(self.cleaning(s))
+
+        return out
+
+    def cleaning(self,ing):
+        """ This function takes a semi-processed ingredient string and extracts only base ingredient
+        returns a string which holds base ingredient
+        """
+        # initialize a list with parts of speech tuples for each word in the ingredient string and reverse it to process it backwards
+        w = tb(ing).tags
+        w.reverse()
+
+        # check if only one noun, in which case return just the noun
+        nouns = ['NN','NNS','NNP']
+        ncount = []
+        for val,part in w:
+            if part in nouns:
+                ncount.append(val+' ')
+        if len(ncount) == 1:
+            return ''.join(ncount)
+
+        # initialize a noun counter and a temp store for words as well as a store for the previous part of speech
+        ncount = 0
+        temp = []
+        prev = None
+
+        # for each word, check if matches conditions at which base ingredient identified, if none satisfied, update prev
+        for val,part in w:
+            if part == 'CD':
+                if prev == 'JJ' or prev == 'N2' or (prev in nouns and ncount>1):
+                    temp.pop()
+                temp.reverse()
+                return ''.join(temp)
+            elif prev == 'JJ':
+                if ncount > 0:
+                    temp.reverse()
+                    return ''.join(temp)
+            elif part in nouns:
+                temp.append(val+' ')
+                ncount += 1
+                if prev in nouns:
+                    prev = 'N2'
+            elif part == 'JJ':
+                temp.append(val+' ')
+
+            if prev != 'N2':
+                prev = part 
+
+    def getnutri(self):
+        """ This function fetches the nutrition facts of the recipe
+        returns a dictionary of key:value pairs containing nutrition info
+        """
+        # initialize output dictionary and initiliaze name:value pairs if possible
+        out = {}
+        try:
+            names = self.soup.body.find_all("span",class_='nutrient-name')
+            vals = self.soup.body.find_all("span",class_='nutrient-value')
+        except:
+            return None
+        # if no error, standardize names, record the pairs in dictionary and return
+        standardize(names,vals)
+        for name,val in zip(names,vals):
+            out[name.contents[0].strip()[:-1]] = [val.contents[0].strip()]
+        return sorted(out)
+
+    def geterr(self):
+        if self.name is None or self.nutrition is None or self.rating is None or self.ingredients is None:
+            return True
+        return False
+
+def standardize(names,vals):
+    """ This function regularizes nutrition names
+
+    This function ensures that nutrition names adhere such that overlapping features are not created
+    :names: list; holds all names of nutrition items
+    :vals: list; holds all associated values to names
+    """
+    # create standardization set
+    standard = {
+        "fat":"Total Fat",
+        "saturated fat":"Saturated Fat",
+        "cholesterol":"Cholesterol",
+        "sodium":"Sodium",
+        "potassium":"Potassium",
+        "carbohydrates":"Total Carbohydrates",
+        "dietary fiber":"Dietary Fiber",
+        "protein":"Protein",
+        "sugars":"Sugars",
+        "vitamin a iu":"Vitamin A",
+        "vitamin c":"Vitamin C",
+        "calcium":"Calcium",
+        "iron":"Iron",
+        "thiamin":"Thiamin",
+        "niacin equivilants":"Niacin",
+        "vitamin b6":"Vitamin B6",
+        "magnesium":"Magnesium",
+        "folate":"Folate"
+    }
+    # more easily compact names
+    names = [name.contents[0].strip()[:-1] for name in names]
+    # for items already in names, make sure it is standardized value
+    for i,name in enumerate(names):
+        if standard.get(name.lower()):
+            names[i] = standard.get(name.lower())
+    # for items not in names, add
+    for notin in set(standard.keys()).difference(names):
+        names.append(standard.get(notin))
+        vals.append('-')
 
 def scrape_links():
-    # create the master list of recipes
+    """ Create the master list of recipes
+    
+    This function creates an AllRecipeBook instance for allrecipes.com/recipes and extracts the created linklist
+    """
     url = "https://www.allrecipes.com/recipes/"
     book = AllRecipeBook(url).linklist
 
