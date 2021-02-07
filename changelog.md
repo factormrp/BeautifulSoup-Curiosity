@@ -6,8 +6,6 @@ CHANGELOG
 ##  Added
 ### scraping.py
     - debug attribute for Recipe class to print what type of error occurs
-### tests/test_preprocessed_recipes.py
-    - barebones test to see if Recipe debug works
 ### encoding.py
     - multiprocessing for speedup by utilizing Pool.map
 ##  Changed

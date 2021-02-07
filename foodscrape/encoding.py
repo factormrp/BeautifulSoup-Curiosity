@@ -99,4 +99,4 @@ def to_excel(quant=DEFAULT_QUANT):
     print('encoding df...')
     encoded_df = encode(df)
     print('exporting df...')
-    excel_export(encoded_df.drop(columns=['Ingredients']),'recipes.xlsx')
+    excel_export(encoded_df.drop(columns=['Ingredients']),'data/recipes.xlsx')
