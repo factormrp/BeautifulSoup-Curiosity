@@ -2,15 +2,29 @@ CHANGELOG
 ==========================================================
 *This document outlines all notable changes to the project Types of changes included: Added, Changed, Removed, Deprecated, Fixed, Security*
 ==========================================================
+# version[0.0.8]
+##  Added
+### scraping.py
+    - debug attribute for Recipe class to print what type of error occurs
+### tests/test_preprocessed_recipes.py
+    - barebones test to see if Recipe debug works
+### encoding.py
+    - multiprocessing for speedup by utilizing Pool.map
+##  Changed
+### scraping.py
+    - changed urllib to requests in order to reuse http connections
+    - changed BeautifulSoup parser from python's html parser to lxml
+
+
 # version[0.0.7]
 ##  Added
-###   scraping.py
+### scraping.py
     - implemented cleaning method in Recipe to standardize ingredients
-    - implemented batched output
+    - implemented quantized output
 ##  Changed
 ###   change.log -> changelog.md
     - changed to Markdown for easier previewing
-###   GIT 
+### GIT 
     - moved encoding to new branch 
 ##  Removed
 ### GIT

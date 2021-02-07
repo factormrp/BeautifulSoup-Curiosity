@@ -1,9 +1,7 @@
 *.egg-info/
 build/
-tests/
 .eggs/
 dist/
 *.xlsx
 *.txt
 *.pyc
-w.py
